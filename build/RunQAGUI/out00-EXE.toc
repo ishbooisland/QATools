@@ -1,0 +1,9 @@
+('C:\\Users\\Darrin\\PycharmProjects\\QATools\\dist\\RunQAGUI.exe',
+ True,
+ False,
+ None,
+ None,
+ [],
+ None,
+ False,
+ 1454698403L)
