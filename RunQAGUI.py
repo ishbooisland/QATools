@@ -1,21 +1,16 @@
-import sys
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
-
 from PyQt4 import QtCore, QtGui
-import sys
 import pyodbc
 import os
 import threading
 import MainMenu
 import time
-import re
 
 Today = time.strftime("%Y%m%d")
 
 sourceList = []
 server = ""
 fileNumber = 1
+skippedQueries = []
 
 
 def getSources():
@@ -167,12 +162,12 @@ class Ui_mainMenu(QtGui.QWidget):
                 g.write(text)
 
         def runOnlineIndex(sourceInput, directory):
+            results = ''
             global fileNumber
 
             try:
                 queriesOI = getSQLList(
-                    "Select F1 From Zeus.Data_Dev.dbo.Online_Index_Prints " +
-                    "Order by ID")
+                    "Select F1 From [Test].[dbo].[Onlineindex_prints_v2] Order by ID")
                 source = sourceInput
 
                 if not os.path.isdir(directory):
@@ -201,7 +196,25 @@ class Ui_mainMenu(QtGui.QWidget):
                         percentageComplete = float(currentQuery / float(totalQueryCount) * 100)
                         self.updateProgress(percentageComplete)
 
-                    results = getSQLList(query.F1.replace('xxxxx', source))
+                    try:
+                        print(query.F1.replace('xxxxx', source))
+                        results = getSQLList(query.F1.replace('xxxxx', source))
+                    except Exception as c:
+                        errorColumnsTemp = str(c)
+                        outputColumns = ""
+                        if 'Invalid column name' in errorColumnsTemp:
+                            errorColumnsSplit = errorColumnsTemp.split('; ')
+                            for errorColumn in errorColumnsSplit:
+                                errorColumnClean = errorColumn.replace("'. (207) (SQLExecDirectW)", "").replace(
+                                "[42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name '",
+                                "").replace("'. (207)", "").replace(";", "").strip()
+                                if errorColumnClean not in outputColumns:
+                                    if outputColumns == "":
+                                        outputColumns = errorColumnClean
+                                    else:
+                                        outputColumns = outputColumns + "; " + errorColumnClean
+
+                        skippedQueries.append(outputColumns + '|' + query.F1.replace('xxxxx', source))
 
                     if len(results) > 0:
                         appendLine(directory + source + '_Online_Index_' + Today + '_QA' + str(fileNumber) + '.sql',
@@ -214,10 +227,10 @@ class Ui_mainMenu(QtGui.QWidget):
                                 if result[i] is None:
                                     resultToPrint = resultToPrint + '' + '|'
                                 else:
-                                    resultToPrint = resultToPrint + str(result[i]).decode("latin1").encode('utf-8') + '|'
+                                    resultToPrint = resultToPrint + str(result[i]) + '|'
 
                             appendLine(directory + source + '_Online_Index_' + Today + '_QA' + str(fileNumber) + '.sql',
-                                       '\n' + str(resultToPrint).decode("latin1").encode('utf-8'))
+                                       '\n' + str(resultToPrint))
 
                         appendLine(directory + source + '_Online_Index_' + Today + '_QA' + str(fileNumber) + '.sql',
                                    '\n\n' +
@@ -232,10 +245,11 @@ class Ui_mainMenu(QtGui.QWidget):
                 raise threading.ThreadError("Error")
 
         def runOffenses(sourceInput, directory):
+            results = ''
             global fileNumber
 
             try:
-                queriesOF = getSQLList("Select F1 From Zeus.Data_Dev.dbo.Offenses_Prints Order by ID")
+                queriesOF = getSQLList("Select F1 From [Test].[dbo].[Offenses_prints_v2] Order by ID")
                 source = sourceInput
 
                 if not os.path.isdir(directory):
@@ -254,7 +268,11 @@ class Ui_mainMenu(QtGui.QWidget):
                         percentageComplete = float(currentQuery / float(totalQueryCount) * 100)
                         self.updateProgress(percentageComplete)
 
-                    results = getSQLList(query.F1.replace('xxxxx', source))
+                    try:
+                        print(query.F1.replace('xxxxx', source))
+                        results = getSQLList(query.F1.replace('xxxxx', source))
+                    except Exception as c:
+                        skippedQueries.append(str(c) + '|' + query.F1.replace('xxxxx', source))
 
                     if len(results) > 0:
                         appendLine(directory + source + '_Offenses_' + Today + '_QA' + str(fileNumber) + '.sql',
@@ -267,24 +285,28 @@ class Ui_mainMenu(QtGui.QWidget):
                                 if result[i] is None:
                                     resultToPrint = resultToPrint + '' + '|'
                                 else:
-                                    resultToPrint = resultToPrint + str(result[i]).decode("latin1").encode('utf-8') + '|'
+                                    resultToPrint = resultToPrint + str(result[i]) + '|'
 
                             appendLine(directory + source + '_Offenses_' + Today + '_QA' + str(fileNumber) + '.sql',
-                                       '\n' + str(resultToPrint).decode("latin1").encode('utf-8'))
+                                       '\n' + str(resultToPrint))
 
                         appendLine(directory + source + '_Offenses_' + Today + '_QA' + str(fileNumber) + '.sql',
                                    '\n\n' +
                                    'Rows Affected(' + str(len(results)) + ')')
                         appendLine(directory + source + '_Offenses_' + Today + '_QA' + str(fileNumber) + '.sql', '\n' +
                                    '-----------------------------------------------------------------------------------' +
-                                   '------------------------------------------------------------------------------------')
+                                   '-----------------------------------------------------------------------------------')
                     results = ''
             except Exception as e:
                 self.reportError('An Error Has Occurred: ' + str(e))
                 raise threading.ThreadError("Error")
 
         runOnlineIndex(inputSource, qaDirectory)
-        runOffenses(inputSource, qaDirectory)
+        #runOffenses(inputSource, qaDirectory)
+
+        for item in skippedQueries:
+            appendLine(qaDirectory + inputSource + '_QueriesSkipped_' + Today + '_QA.sql', item + '\n')
+
         self.reportError('QA Prints Are Complete')
 
 
