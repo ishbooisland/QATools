@@ -1,4 +1,5 @@
 from PyQt4 import QtCore, QtGui
+from PyQt4.QtGui import *
 import pyodbc
 import os
 import threading
@@ -20,7 +21,7 @@ def getSources():
 
 
 def getSQLList(query):
-    cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=DARRIN-PC\SQLEXPRESS;DATABASE=Test')
+    cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=CERA;DATABASE=Patriot')
     cursor = cnxn.cursor()
     cursor.execute(query)
     rows = cursor.fetchall()
@@ -60,7 +61,7 @@ class Ui_mainMenu(QtGui.QWidget):
         sizePolicy.setHeightForWidth(mainMenu.sizePolicy().hasHeightForWidth())
         mainMenu.setSizePolicy(sizePolicy)
         self.label = QtGui.QLabel(mainMenu)
-        self.label.setGeometry(QtCore.QRect(10, 10, 99, 33))
+        self.label.setGeometry(QtCore.QRect(10, 7, 99, 33))
         font = QtGui.QFont()
         font.setFamily(_fromUtf8("Calibri"))
         font.setPointSize(20)
@@ -70,6 +71,7 @@ class Ui_mainMenu(QtGui.QWidget):
         self.label_2 = QtGui.QLabel(mainMenu)
         self.label_2.setGeometry(QtCore.QRect(230, 310, 171, 20))
         self.label_2.setObjectName(_fromUtf8("label_2"))
+
         self.sunken_frame = QtGui.QFrame(mainMenu)
         self.sunken_frame.setGeometry(QtCore.QRect(10, 80, 241, 31))
         self.sunken_frame.setFrameShape(QtGui.QFrame.StyledPanel)
@@ -80,6 +82,26 @@ class Ui_mainMenu(QtGui.QWidget):
         self.dir_lbl.setMinimumSize(QtCore.QSize(0, 13))
         self.dir_lbl.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.dir_lbl.setObjectName(_fromUtf8("dir_lbl"))
+
+        # self.sunken_frame2 = QtGui.QFrame(mainMenu)
+        # self.sunken_frame2.setGeometry(QtCore.QRect(10, 40, 241, 31))
+        # self.sunken_frame2.setFrameShape(QtGui.QFrame.StyledPanel)
+        # self.sunken_frame2.setFrameShadow(QtGui.QFrame.Sunken)
+        # self.sunken_frame2.setObjectName(_fromUtf8("sunken_frame2"))
+        # self.print_lbl = QtGui.QLabel(self.sunken_frame2)
+        # self.print_lbl.setGeometry(QtCore.QRect(10, 10, 221, 16))
+        # self.print_lbl.setMinimumSize(QtCore.QSize(0, 13))
+        # self.print_lbl.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        # self.print_lbl.setObjectName(_fromUtf8("print_lbl"))
+
+        self.textbox = QLineEdit(mainMenu)
+        self.textbox.move(10, 40)
+        self.textbox.resize(241, 15)
+
+        self.textbox2 = QLineEdit(mainMenu)
+        self.textbox2.move(10, 58)
+        self.textbox2.resize(241, 15)
+
         self.browse_btn = QtGui.QPushButton(mainMenu)
         self.browse_btn.setGeometry(QtCore.QRect(270, 80, 121, 31))
         self.browse_btn.setObjectName(_fromUtf8("browse_btn"))
@@ -115,8 +137,10 @@ class Ui_mainMenu(QtGui.QWidget):
     def retranslateUi(self, mainMenu):
         mainMenu.setWindowTitle(_translate("mainMenu", "QA Tools - Run QA", None))
         self.label.setText(_translate("mainMenu", "Run QA", None))
-        self.label_2.setText(_translate("mainMenu", "Innovative Enterprises Inc. - 2016", None))
+        self.label_2.setText(_translate("mainMenu", "Innovative Enterprises Inc. - 2018", None))
         self.dir_lbl.setText(_translate("mainMenu", "Choose QA Results Folder...", None))
+        self.textbox.setText(_translate("mainMenu", "[Zeus].[Data_Dev].[dbo].[Onlineindex_prints_v2]", None))
+        self.textbox2.setText(_translate("mainMenu", "[Zeus].[Data_Dev].[dbo].[Offenses_prints_v2]", None))
         self.browse_btn.setText(_translate("mainMenu", "Browse", None))
         self.runQA_btn.setText(_translate("mainMenu", "Run QA", None))
         self.browse_btn.clicked.connect(self.setExistingDirectory)
@@ -148,6 +172,8 @@ class Ui_mainMenu(QtGui.QWidget):
 
         qaDirectory = self.dir_lbl.text()
         inputSource = self.source_list.currentItem().text()
+        printTableOI = self.textbox.text()
+        printTableO = self.textbox2.text()
 
         if '\\QA Results' not in qaDirectory:
             qaDirectory += '\\QA Results\\'
@@ -167,7 +193,7 @@ class Ui_mainMenu(QtGui.QWidget):
 
             try:
                 queriesOI = getSQLList(
-                    "Select F1 From [Test].[dbo].[Onlineindex_prints_v2] Order by ID")
+                    "Select F1 From " + printTableOI + " Order by ID")
                 source = sourceInput
 
                 if not os.path.isdir(directory):
@@ -207,8 +233,8 @@ class Ui_mainMenu(QtGui.QWidget):
                             for errorColumn in errorColumnsSplit:
                                 errorColumnClean = errorColumn.replace("'. (207) (SQLExecDirectW)", "").replace(
                                 "[42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name '",
-                                "").replace("'. (207)", "").replace(";", "").strip()
-                                if errorColumnClean not in outputColumns:
+                                "").replace("'. (207)", "").replace(";", "").replace("('42S22', \"", "").replace('")','').strip()
+                                if errorColumnClean.lower() not in outputColumns.lower():
                                     if outputColumns == "":
                                         outputColumns = errorColumnClean
                                     else:
@@ -249,7 +275,7 @@ class Ui_mainMenu(QtGui.QWidget):
             global fileNumber
 
             try:
-                queriesOF = getSQLList("Select F1 From [Test].[dbo].[Offenses_prints_v2] Order by ID")
+                queriesOF = getSQLList("Select F1 From " + printTableO + " Order by ID")
                 source = sourceInput
 
                 if not os.path.isdir(directory):
@@ -272,7 +298,22 @@ class Ui_mainMenu(QtGui.QWidget):
                         print(query.F1.replace('xxxxx', source))
                         results = getSQLList(query.F1.replace('xxxxx', source))
                     except Exception as c:
-                        skippedQueries.append(str(c) + '|' + query.F1.replace('xxxxx', source))
+                        errorColumnsTemp = str(c)
+                        outputColumns = ""
+                        if 'Invalid column name' in errorColumnsTemp:
+                            errorColumnsSplit = errorColumnsTemp.split('; ')
+                            for errorColumn in errorColumnsSplit:
+                                errorColumnClean = errorColumn.replace("'. (207) (SQLExecDirectW)", "").replace(
+                                    "[42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name '",
+                                    "").replace("'. (207)", "").replace(";", "").replace("('42S22', \"", "").replace(
+                                    '")', '').strip()
+                                if errorColumnClean.lower() not in outputColumns.lower():
+                                    if outputColumns == "":
+                                        outputColumns = errorColumnClean
+                                    else:
+                                        outputColumns = outputColumns + "; " + errorColumnClean
+
+                        skippedQueries.append(outputColumns + '|' + query.F1.replace('xxxxx', source))
 
                     if len(results) > 0:
                         appendLine(directory + source + '_Offenses_' + Today + '_QA' + str(fileNumber) + '.sql',
@@ -304,8 +345,11 @@ class Ui_mainMenu(QtGui.QWidget):
         runOnlineIndex(inputSource, qaDirectory)
         #runOffenses(inputSource, qaDirectory)
 
+        if os.path.isfile(qaDirectory + inputSource + '_QueriesSkipped.sql'):
+            os.remove(qaDirectory + inputSource + '_QueriesSkipped.sql')
+
         for item in skippedQueries:
-            appendLine(qaDirectory + inputSource + '_QueriesSkipped_' + Today + '_QA.sql', item + '\n')
+            appendLine(qaDirectory + inputSource + '_QueriesSkipped.sql', item + '\n')
 
         self.reportError('QA Prints Are Complete')
 
